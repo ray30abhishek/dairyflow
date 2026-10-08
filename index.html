@@ -135,17 +135,16 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function money(n){return '₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function num(n){return Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}
 function roleCan(roles){return session&&roles.includes(session.role)}
-function login(){
-  const u = document.getElementById('loginUser').value.trim();
-  const p = document.getElementById('loginPass').value;
+function login() {
+  const username = document.getElementById('loginUser').value.trim().toLowerCase();
+  const password = document.getElementById('loginPass').value;
   const role = document.getElementById('loginRole').value;
 
-  // Default Owner login
-  if(
-    u.toLowerCase() === 'owner' &&
-    p === 'dairy123' &&
+  if (
+    username === 'owner' &&
+    password === 'dairy123' &&
     role === 'Owner'
-  ){
+  ) {
     session = {
       id: 1,
       name: 'Owner',
@@ -159,47 +158,17 @@ function login(){
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
 
-    document.getElementById('currentUser').textContent =
-      'Owner · Owner';
-
+    document.getElementById('currentUser').textContent = 'Owner · Owner';
     document.getElementById('avatar').textContent = 'O';
 
     applyTheme();
     init();
     go('dashboard');
 
-    return;
-  }
-
-  // Other users
-  const found = data.users.find(x =>
-    String(x.username).toLowerCase() === u.toLowerCase() &&
-    String(x.password) === p &&
-    String(x.role) === role
-  );
-
-  if(!found){
+  } else {
     document.getElementById('loginError').textContent =
-      'Login details or selected role are incorrect.';
-    return;
+      'Username, password or role is incorrect.';
   }
-
-  session = found;
-
-  document.getElementById('loginError').textContent = '';
-
-  document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-
-  document.getElementById('currentUser').textContent =
-    found.name + ' · ' + found.role;
-
-  document.getElementById('avatar').textContent =
-    found.name.charAt(0).toUpperCase();
-
-  applyTheme();
-  init();
-  go('dashboard');
 }
 function logout(){session=null;document.getElementById('app').classList.add('hidden');document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('loginPass').value=''}
 function go(page){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+page).classList.add('active');document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));const title={dashboard:'Dashboard',customers:'Customers',register:'Milk register',bills:'Milk bills',team:'Team & access',feedback:'Customer feedback',settings:'Settings'}[page];document.getElementById('welcomeTitle').textContent=title;renderAll();if(page==='bills')renderBill();if(page==='register')renderRegister()}
