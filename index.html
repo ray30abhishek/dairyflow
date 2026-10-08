@@ -150,7 +150,72 @@ function drawTrend(){let z=prepCanvas('trendChart');if(!z)return;let {x,w,h}=z;c
 function drawPie(){let z=prepCanvas('pieChart');if(!z)return;let {x,w,h}=z,css=getComputedStyle(document.body),muted=css.getPropertyValue('--muted'),line=css.getPropertyValue('--line');let sums={};data.milk.forEach(m=>sums[m.customerId]=(sums[m.customerId]||0)+m.qty);let items=Object.entries(sums).map(([id,val])=>({name:customerName(Number(id)),val})).sort((a,b)=>b.val-a.val).slice(0,5);if(!items.length){x.fillStyle=muted;x.textAlign='center';x.font='14px Arial';x.fillText('Add milk entries to see chart',w/2,h/2);document.getElementById('pieLegend').textContent='No data yet';return}let total=items.reduce((s,i)=>s+i.val,0),colors=['#18865b','#4d8cf5','#f4a62a','#a56de2','#e46b79'];let cx=w/2,cy=h/2,r=Math.min(w,h)*.34,start=-Math.PI/2;items.forEach((it,i)=>{let end=start+it.val/total*Math.PI*2;x.beginPath();x.moveTo(cx,cy);x.arc(cx,cy,r,start,end);x.closePath();x.fillStyle=colors[i];x.fill();start=end});x.beginPath();x.arc(cx,cy,r*.57,0,Math.PI*2);x.fillStyle=css.getPropertyValue('--panel');x.fill();x.fillStyle=css.getPropertyValue('--text');x.textAlign='center';x.font='bold 17px Arial';x.fillText(num(total)+' L',cx,cy+5);document.getElementById('pieLegend').innerHTML=items.map((it,i)=>`<span style="display:inline-block;margin:4px 10px 0 0"><span style="color:${colors[i]}">●</span> ${esc(it.name)} (${num(it.val)} L)</span>`).join('')}
 function showCustomerForm(id=null){if(!roleCan(['Owner','Manager'])){alert('Only Owner or Manager can add/edit customers.');return}editingCustomer=id;document.getElementById('customerFormCard').classList.remove('hidden');document.getElementById('customerFormTitle').textContent=id?'Edit customer':'Add customer';let c=data.customers.find(x=>x.id===id);document.getElementById('cName').value=c?.name||'';document.getElementById('cPhone').value=c?.phone||'';document.getElementById('cAddress').value=c?.address||'';document.getElementById('cRate').value=c?.rate??''}
 function hideCustomerForm(){document.getElementById('customerFormCard').classList.add('hidden');editingCustomer=null}
-function saveCustomer(){if(!roleCan(['Owner','Manager']))return alert('Not allowed for this role.');let name=document.getElementById('cName').value.trim(),rate=Number(document.getElementById('cRate').value);if(!name||document.getElementById('cRate').value===''||rate<0)return alert('Enter a customer name and valid rate.');let obj={name,phone:document.getElementById('cPhone').value.trim(),address:document.getElementById('cAddress').value.trim(),rate};if(editingCustomer){Object.assign(data.customers.find(c=>c.id===editingCustomer),obj)}else data.customers.push({id:data.nextCustomer++,...obj});persist();hideCustomerForm();renderAll()}
+async function saveCustomer(){
+  if(!roleCan(['Owner','Manager']))
+    return alert('Not allowed for this role.');
+
+  let name=document.getElementById('cName').value.trim();
+  let rate=Number(document.getElementById('cRate').value);
+
+  if(
+    !name ||
+    document.getElementById('cRate').value==='' ||
+    rate<0
+  ){
+    return alert('Enter a customer name and valid rate.');
+  }
+
+  let obj={
+    name:name,
+    phone:document.getElementById('cPhone').value.trim(),
+    address:document.getElementById('cAddress').value.trim(),
+    rate:rate
+  };
+
+  if(editingCustomer){
+
+    Object.assign(
+      data.customers.find(c=>c.id===editingCustomer),
+      obj
+    );
+
+  }else{
+
+    let customer={
+      id:data.nextCustomer++,
+      ...obj
+    };
+
+    data.customers.push(customer);
+
+    try{
+
+      await fetch(API_URL,{
+        method:'POST',
+        body:JSON.stringify({
+          action:'addCustomer',
+          customerId:customer.id,
+          name:customer.name,
+          phone:customer.phone,
+          address:customer.address,
+          milkRate:customer.rate
+        })
+      });
+
+      alert('Customer saved to Google Sheets.');
+
+    }catch(error){
+
+      alert(
+        'Customer saved locally, but Google Sheets sync failed.'
+      );
+    }
+  }
+
+  persist();
+  hideCustomerForm();
+  renderAll();
+}
 function renderCustomers(){let q=(document.getElementById('customerSearch')?.value||'').toLowerCase();let list=data.customers.filter(c=>(c.name+' '+c.phone).toLowerCase().includes(q));document.getElementById('customersTable').innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Address</th><th>Rate / L</th><th>Actions</th></tr></thead><tbody>${list.map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.phone||'—')}</td><td>${esc(c.address||'—')}</td><td>${money(c.rate)}</td><td><button class="secondary small" onclick="showCustomerForm(${c.id})">Edit</button> <button class="danger small" onclick="deleteCustomer(${c.id})">Delete</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No customers found. Add a customer to get started.</div>'}
 function deleteCustomer(id){if(!roleCan(['Owner','Manager']))return alert('Only Owner or Manager can delete customers.');let c=data.customers.find(c=>c.id===id);if(confirm(`Delete ${c.name}? Existing milk records will remain in history.`)){data.customers=data.customers.filter(c=>c.id!==id);persist();renderAll()}}
 function saveMilk(){if(!roleCan(['Owner','Manager','Staff']))return alert('This role cannot add milk entries.');let date=document.getElementById('mDate').value,cid=Number(document.getElementById('mCustomer').value),qty=Number(document.getElementById('mQty').value),rateInput=document.getElementById('mRate').value,c=data.customers.find(c=>c.id===cid),rate=rateInput===''?(c?.rate??0):Number(rateInput);if(!date||!c||!qty||qty<=0||rate<0)return alert('Please choose a customer, date, quantity and valid rate.');data.milk.push({id:data.nextMilk++,date,customerId:cid,qty,rate,note:document.getElementById('mNote').value.trim(),by:session.username});persist();document.getElementById('mQty').value='';document.getElementById('mNote').value='';renderAll();alert('Milk entry saved.')}
