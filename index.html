@@ -127,6 +127,7 @@ const KEY='dairyflow_v1';
 const today=new Date(); const iso=d=>{let x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const currentDate=iso(today);
 let data=loadData(), session=null, editingCustomer=null;
+  console.log(data.users);
 function seed(){return {users:[{id:1,name:'Owner',username:'owner',password:'dairy123',role:'Owner'}],customers:[],milk:[],feedback:[],nextUser:2,nextCustomer:1,nextMilk:1,nextFeedback:1,theme:'light'}}
 function loadData(){try{let x=JSON.parse(localStorage.getItem(KEY));return x&&x.users?x:seed()}catch(e){return seed()}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(data))}
